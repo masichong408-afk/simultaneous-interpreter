@@ -37,15 +37,42 @@ cd simultaneous-interpreter
 pip install -r requirements.txt
 ```
 
-#### 3. 配置 API 密钥
+#### 3. 申请火山引擎 API 密钥
 
-复制环境变量模板并填写：
+本项目需要两个密钥：`VOLCANO_APP_KEY`（应用密钥）和 `VOLCANO_ACCESS_KEY`（账号访问密钥），按以下步骤获取：
+
+**第一步：注册并实名认证**
+
+1. 访问 [火山引擎官网](https://www.volcengine.com/)，点击右上角注册/登录
+2. 完成实名认证（个人或企业均可），认证后才能开通服务
+
+**第二步：开通豆包同声传译 2.0 大模型服务**
+
+1. 进入 [语音技术控制台](https://console.volcengine.com/speech/app)
+2. 在左侧导航栏点击「服务列表」，找到「**豆包同声传译 2.0 大模型**」并开通（有免费试用额度）
+3. 注意：请选择「豆包同声传译 2.0 大模型」，不要选旧版同声传译服务
+
+**第三步：创建应用，获取 App Key**
+
+1. 在语音技术控制台，点击「应用管理」→「创建应用」
+2. 填写应用名称，在「接入能力」中勾选「豆包同声传译 2.0 大模型」
+3. 创建完成后，在应用列表中查看 **App Key**（即 `VOLCANO_APP_KEY`）
+
+**第四步：获取 Access Key**
+
+1. 点击控制台右上角头像 →「API 访问密钥」，或直接访问 [密钥管理页面](https://console.volcengine.com/iam/keymanage/)
+2. 点击「新建密钥」，创建后记录 **Access Key ID**（即 `VOLCANO_ACCESS_KEY`）和 **Secret Access Key**
+3. Secret Access Key 只在创建时显示一次，请妥善保存
+
+> 如果遇到权限问题，前往「访问控制」→「用户管理」→「关联策略」，添加 `SAMIFullAccess` 权限。
+
+**第五步：配置到项目中**
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，填入火山引擎的 App Key 和 Access Key：
+编辑 `.env` 文件，填入获取的密钥：
 
 ```
 VOLCANO_APP_KEY=your_app_key
@@ -155,15 +182,42 @@ cd simultaneous-interpreter
 pip install -r requirements.txt
 ```
 
-#### 3. Configure API Keys
+#### 3. Apply for Volcano Engine API Keys
 
-Copy the environment variable template and fill it in:
+This project requires two keys: `VOLCANO_APP_KEY` (application key) and `VOLCANO_ACCESS_KEY` (account access key). Follow these steps:
+
+**Step 1: Register and Complete Identity Verification**
+
+1. Visit [Volcano Engine](https://www.volcengine.com/) and click Register/Login in the top right corner
+2. Complete identity verification (personal or enterprise). Services can only be activated after verification.
+
+**Step 2: Enable the Doubao Simultaneous Translation 2.0 Model Service**
+
+1. Go to the [Speech Technology Console](https://console.volcengine.com/speech/app)
+2. Click "Service List" in the left sidebar, find "**Doubao Simultaneous Translation 2.0 Model**" and enable it (free trial quota available)
+3. Note: Make sure to select "Doubao Simultaneous Translation 2.0 Model", not the legacy translation service
+
+**Step 3: Create an Application and Get the App Key**
+
+1. In the Speech Technology Console, click "Application Management" → "Create Application"
+2. Enter an application name and check "Doubao Simultaneous Translation 2.0 Model" under "Access Capabilities"
+3. After creation, find the **App Key** in the application list (this is your `VOLCANO_APP_KEY`)
+
+**Step 4: Get the Access Key**
+
+1. Click your avatar in the top right corner → "API Access Key", or visit the [Key Management page](https://console.volcengine.com/iam/keymanage/) directly
+2. Click "Create Key" and record the **Access Key ID** (this is your `VOLCANO_ACCESS_KEY`) and **Secret Access Key**
+3. The Secret Access Key is only shown once at creation time — save it securely
+
+> If you encounter permission issues, go to "Access Control" → "User Management" → "Associate Policy" and add the `SAMIFullAccess` policy.
+
+**Step 5: Configure the Project**
 
 ```bash
 cp .env.example .env
 ```
 
-Edit the `.env` file and enter your Volcano Engine App Key and Access Key:
+Edit the `.env` file and enter your keys:
 
 ```
 VOLCANO_APP_KEY=your_app_key
