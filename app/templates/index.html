@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Meeting Mate</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        /* =========================================
+           0. 全局样式
+           ========================================= */
+        * { box-sizing: border-box; user-select: none; outline: none; }
+        
+        :root {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --bg-input: #252525;
+            --border: #333333;
+            --accent: #3b82f6;
+            --text-main: #e5e5e5;
+            --text-sub: #a3a3a3;
+            --mask: rgba(0, 0, 0, 0.85);
+            --status-green: #10b981; 
+            --status-yellow: #f59e0b;
+            --status-red: #ef4444;
+        }
+
+        html, body { 
+            height: 100%; margin: 0; overflow: hidden; 
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-body); 
+            color: var(--text-main); 
+        }
+
+        /* =========================================
+           1. 标题栏 (响应式 OS 风格 - 修复版)
+           ========================================= */
+        .header { 
+            display: flex; align-items: center; 
+            height: 36px; background-color: var(--bg-card); 
+            border-bottom: 1px solid #2a2a2a;
+            padding: 0 5px;
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 13px; padding-left: 10px; white-space: nowrap; }
+        .logo-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+        
+        .header-center { display: flex; gap: 8px; flex: 1; }
+        
+        .btn-nav {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid #444; color: #ccc;
+            padding: 3px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-nav:hover { background: var(--accent); border-color: var(--accent); color: white; }
+
+        /* =========================================
+           2. 仪表盘
+           ========================================= */
+        #section-dashboard { display: flex; flex-direction: column; height: 100%; width: 100%; }
+        .main-body { display: flex; flex: 1; gap: 15px; overflow: hidden; padding: 20px; }
+        .col-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; flex: 1; display: flex; flex-direction: column; }
+        .col-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .step-badge { background: var(--bg-input); color: #888; font-size: 9px; padding: 1px 5px; border-radius: 3px; border: 1px solid #333; }
+        .form-group { margin-bottom: 10px; }
+        .form-label { display: block; font-size: 11px; color: var(--text-sub); margin-bottom: 4px; }
+        select { width: 100%; background: var(--bg-input); color: white; border: 1px solid var(--border); padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        select option:disabled { color: #555; background: #1a1a1a; }
+        .lang-block { background: var(--bg-input); padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px; }
+        .lang-arrow { text-align: center; color: var(--text-sub); font-size: 10px; margin: 2px 0; }
+
+        /* 校准按钮 */
+        .btn-calibrate {
+            width: 100%; margin-top: 5px; background: rgba(59, 130, 246, 0.15); 
+            border: 1px dashed var(--accent); color: var(--accent);
+            padding: 6px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn-calibrate:hover { background: var(--accent); color: white; }
+        .btn-calibrate.calibrating { background: var(--status-yellow); border-color: var(--status-yellow); color: black; cursor: wait; }
+
+        .internal-status-box {
+            margin-top: auto;
+            background: rgba(0,0,0,0.2);
+            border: 1px dashed #444;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        .isb-title { 
+            font-size: 10px; color: #666; margin-bottom: 10px; 
+            font-weight: bold; text-transform: uppercase; 
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
+        }
+        
+        .isb-group { margin-bottom: 10px; display: flex; flex-direction: column; }
+        .isb-group:last-child { margin-bottom: 0; }
+        .isb-label { color: #888; font-size: 10px; margin-bottom: 4px; }
+        .isb-val { color: #aaa; font-family: "Consolas", monospace; font-size: 11px; word-break: break-all; padding-left: 2px; line-height: 1.3; }
+        .isb-val.ok { color: var(--status-green); }
+        .isb-val.warn { color: var(--status-yellow); }
+        .isb-val.err { color: var(--status-red); }
+
+        .glossary-list { flex: 1; overflow-y: auto; padding-right: 4px; }
+        .glossary-item { display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; border-radius: 4px; margin-bottom: 2px; }
+        .glossary-item:hover { background: var(--bg-input); }
+        .glossary-item input { accent-color: var(--accent); margin: 0; }
+        .glossary-text { font-size: 12px; flex: 1; color: #ddd; }
+        .glossary-tag { font-size: 9px; padding: 1px 4px; border-radius: 3px; border: 1px solid #444; color: #888; }
+        .glossary-sep { margin: 10px 0 5px 0; border-bottom: 1px solid #333; font-size: 10px; color: #666; padding-bottom: 2px; }
+
+        .footer { height: 45px; border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: flex-end; gap: 15px; background: var(--bg-card); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #666; transition: 0.3s; }
+        .status-text { font-size: 11px; color: var(--text-sub); }
+        
+        .btn-start { background: var(--accent); color: white; border: none; padding: 0 20px; height: 28px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-start:disabled { background: var(--bg-input); color: #666; cursor: not-allowed; box-shadow: none; }
+        .btn-start.high-latency { background: var(--status-red); opacity: 1; color: white; }
+
+        /* =========================================
+           3. 引导弹窗
+           ========================================= */
+        #guide-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--mask); z-index: 900; display: none; backdrop-filter: blur(4px); }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .modal-box { pointer-events: auto; background: var(--bg-card); padding: 25px; border-radius: 8px; width: 400px; border: 1px solid #444; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+        .spotlight-active { z-index: 901; box-shadow: 0 0 0 2px var(--accent), 0 0 50px rgba(0,0,0,0.8); position: relative; background: var(--bg-card); }
+        .step-next-btn { width: 100%; margin-top: 10px; padding: 8px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; display: none; font-weight: bold; font-size: 12px; }
+        .spotlight-active .step-next-btn { display: block; }
+
+        /* =========================================
+           4. 悬浮窗 / Action Mode
+           ========================================= */
+        #section-action { display: none; height: 100%; flex-direction: column; position: relative; }
+        
+        .action-bar { 
+            height: 28px; background: rgba(0,0,0,0.8); 
+            display: flex; align-items: center; padding: 0 0 0 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-top-left-radius: 6px; border-top-right-radius: 6px;
+        }
+        .action-info { display: flex; gap: 12px; font-size: 11px; color: #999; margin-right: auto; align-items: center; }
+        .act-item { display: flex; align-items: center; gap: 5px; }
+        .action-close-btn { width: 32px; height: 100%; display: flex; align-items: center; justify-content: center; color: #ccc; cursor: pointer; font-size: 12px; border-top-right-radius: 6px; }
+        .action-close-btn:hover { background: #e81123; color: white; }
+
+        .action-body { 
+            flex: 1; display: flex; overflow: hidden; 
+            background: rgba(0, 0, 0, 0.7); 
+            border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;
+            margin: 0; border: 1px solid rgba(255,255,255,0.05); border-top: none;
+            padding: 8px; gap: 12px; 
+        }
+
+        .action-box { 
+            flex: 1; background: transparent; 
+            display: flex; flex-direction: column; 
+            border: 1px solid transparent; /* 默认无边框 */
+            border-radius: 6px;
+            padding: 0; 
+            transition: border-color 0.2s, background 0.2s, opacity 0.3s; /* 平滑过渡 */
+            position: relative;
+            box-sizing: border-box; 
+            overflow: hidden; 
+        }
+
+        /* 状态颜色定义 */
+        .action-box.active-green { 
+            border-color: var(--status-green); 
+            background: rgba(16, 185, 129, 0.05); 
+        }
+        .action-box.active-green .ab-tag { opacity: 1; color: var(--status-green); text-shadow: 0 0 5px var(--status-green); }
+
+        .action-box.active-yellow { 
+            border-color: var(--status-yellow); 
+            background: rgba(245, 158, 11, 0.05); 
+        }
+        .action-box.active-yellow .ab-tag { opacity: 1; color: var(--status-yellow); text-shadow: 0 0 5px var(--status-yellow); }
+
+        .ab-header {
+            padding: 6px 8px; font-size: 9px; color: #777; font-weight: 700; 
+            display: flex; justify-content: space-between; letter-spacing: 0.5px;
+            background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;
+        }
+        .ab-tag { opacity: 0; transition: 0.2s; font-weight: 800; }
+
+        /* --- 上下分屏 --- */
+        .split-container {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* Top Pane: 外语/译文 (高亮) */
+        .pane-trans {
+            flex: 1; 
+            overflow-y: auto; overflow-x: hidden; padding: 8px 8px 4px 8px;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%); 
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%); 
+            
+            font-size: 13px; 
+            color: rgba(255, 255, 255, 0.95); 
+            font-weight: 500; line-height: 1.5;
+            scroll-behavior: smooth; word-wrap: break-word;
+        }
+        
+        .pane-divider {
+            height: 1px; background: rgba(255, 255, 255, 0.08); margin: 0 8px; flex-shrink: 0;
+        }
+
+        /* Bottom Pane: 母语/原文 (稍暗) */
+        .pane-orig {
+            flex: 1; 
+            overflow-y: auto; overflow-x: hidden; padding: 4px 8px 8px 8px;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 15%); 
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%); 
+
+            font-size: 13px; 
+            color: rgba(255, 255, 255, 0.7); 
+            font-weight: 400; line-height: 1.5; 
+            scroll-behavior: smooth; word-wrap: break-word;
+        }
+        
+        .pane-trans::-webkit-scrollbar, .pane-orig::-webkit-scrollbar { width: 0; background: transparent; }
+        
+        .sentence-final { display: inline; margin-right: 6px; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .pending-text { color: var(--accent); opacity: 0.8; font-style: italic; display: inline; }
+        #pane-trans-listen .pending-text { color: var(--status-yellow); } 
+
+    </style>
+</head>
+<body class="platform-win">
+
+    <div id="guide-mask"></div>
+    <div id="guide-modal" class="modal" style="display: none;">
+        <div class="modal-box">
+            <h3 style="margin:0 0 20px 0; color:#fff; font-size:16px;">音频路由设置 / Audio Settings</h3>
+            <div style="text-align:left; background:var(--bg-input); padding:15px; border-radius:6px; color:#ccc; font-size:12px; line-height:1.6; margin-bottom:20px; border:1px solid #333;">
+                <div style="margin-bottom:8px; font-weight:bold; color:#fff; line-height:1.4;">
+                    请前往 腾讯会议/Zoom/飞书/Teams 设置音频:<br>
+                    <span style="font-size:10px; opacity:0.8; font-weight:normal;">Please set in Meeting Apps (Zoom/Teams/Feishu etc):</span>
+                </div>
+                
+                1. 扬声器 / Speaker -> <span style="color:var(--accent); font-weight:bold;">Cable B</span> <br>
+                <span style="color:#666;font-size:10px;">(声音流入AI / Audio into AI)</span><br>
+                2. 麦克风 / Mic -> <span style="color:var(--accent); font-weight:bold;">Cable A</span> <br>
+                <span style="color:#666;font-size:10px;">(翻译传给对方 / Trans to Others)</span>
+                
+                <div style="margin-top:10px; color:var(--status-red); font-weight:bold; border-top:1px solid #444; padding-top:5px;">
+                    ⚠️ 请勿选 16ch / Don't choose 16ch
+                </div>
+            </div>
+            <button class="step-next-btn" style="display:block" onclick="nextGuide(1)">我已设置好 / Confirm & Next</button>
+        </div>
+    </div>
+
+    <div id="section-dashboard">
+        <div class="header">
+            <div class="logo-area"><div class="logo-dot"></div>AI Meeting Mate</div>
+            <div class="header-center">
+                <a href="/glossary"><button class="btn-nav">术语管理 / Glossary Mgr</button></a>
+                <a href="/meetings"><button class="btn-nav">会议记录 / Meetings</button></a>
+                <button class="btn-nav" onclick="resetGuide()" style="opacity:0.5; margin-left:10px;">⚠ 重置 / Reset Guide</button>
+            </div>
+        </div>
+
+        <div class="main-body">
+            <div id="card-lang" class="col-card">
+                <div class="col-title">1. 语言方向 / Language <span class="step-badge">必要</span></div>
+                <div class="lang-block">
+                    <div class="form-group">
+                        <label class="form-label">我说的 / My Speak</label>
+                        <select id="lang-my-speak">
+                            <option value="zh" selected>中文 Chinese</option>
+                            <option value="en">英语 English</option>
+                            <option value="ja">日语 Japanese</option>
+                            <option value="fr">法语 French</option>
+                            <option value="de">德语 German</option>
+                            <option value="es">西语 Spanish</option>
+                            <option value="pt">葡语 Portuguese</option>
+                            <option value="id">印尼语 Indonesian</option>
+                            <option value="zhen">中英混说 Mixed</option>
+                        </select>
+                    </div>
+                    <div class="lang-arrow">⬇ 翻译为 / Translate to ⬇</div>
+                    <div class="form-group">
+                        <label class="form-label" style="color:var(--accent)">对方听到的 / Their Hear</label>
+                        <select id="lang-their-hear">
+                            <option value="en" selected>英语 English</option>
+                            <option value="zh">中文 Chinese</option>
+                            <option value="ja">日语 Japanese</option>
+                            <option value="fr">法语 French</option>
+                            <option value="de">德语 German</option>
+                            <option value="es">西语 Spanish</option>
+                            <option value="pt">葡语 Portuguese</option>
+                            <option value="id">印尼语 Indonesian</option>
+                            <option value="zhen">中英混说 Mixed</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="lang-block" style="margin-top:10px;">
+                     <div class="form-group">
+                        <label class="form-label">对方说的 / Their Speak</label>
+                        <select id="lang-their-speak">
+                            <option value="en" selected>英语 English</option>
+                            <option value="zh">中文 Chinese</option>
+                            <option value="ja">日语 Japanese</option>
+                            <option value="fr">法语 French</option>
+                            <option value="de">德语 German</option>
+                            <option value="es">西语 Spanish</option>
+                            <option value="pt">葡语 Portuguese</option>
+                            <option value="id">印尼语 Indonesian</option>
+                            <option value="zhen">中英混说 Mixed</option>
+                        </select>
+                    </div>
+                    <div class="lang-arrow">⬇ 翻译为 / Translate to ⬇</div>
+                    <div class="form-group">
+                        <label class="form-label" style="color:var(--accent)">我希望听到的 / My Hear</label>
+                        <select id="lang-my-hear">
+                            <option value="zh" selected>中文 Chinese</option>
+                            <option value="en">英语 English</option>
+                            <option value="ja">日语 Japanese</option>
+                            <option value="fr">法语 French</option>
+                            <option value="de">德语 German</option>
+                            <option value="es">西语 Spanish</option>
+                            <option value="pt">葡语 Portuguese</option>
+                            <option value="id">印尼语 Indonesian</option>
+                            <option value="zhen">中英混说 Mixed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="lang-block" style="margin-top:14px; border-top:1px solid #333; padding-top:12px;">
+                    <div class="form-group">
+                        <label class="form-label">我的输出音色 / My Voice</label>
+                        <select id="voice-speak">
+                            <option value="">本人音色（克隆） / Clone</option>
+                            <option value="zh_female_vv_uranus_bigtts">预设女声（推荐） / Female</option>
+                            <option value="zh_male_jingqiangkanye_emo_mars_bigtts">预设男声（推荐） / Male</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">对方输出音色 / Their Voice</label>
+                        <select id="voice-listen">
+                            <option value="">本人音色（克隆） / Clone</option>
+                            <option value="zh_female_vv_uranus_bigtts">预设女声（推荐） / Female</option>
+                            <option value="zh_male_jingqiangkanye_emo_mars_bigtts">预设男声（推荐） / Male</option>
+                        </select>
+                    </div>
+                    <div style="font-size:9px; color:#888; margin-top:4px;">预设音色效果更自然 / Preset voice sounds more natural</div>
+                </div>
+                <button class="step-next-btn" onclick="nextGuide(2)">下一步</button>
+            </div>
+
+            <div id="card-audio" class="col-card">
+                <div class="col-title">2. 本地音频 / Audio Devices <span class="step-badge">必要</span></div>
+                <div class="form-group"><label class="form-label">麦克风 / Input (Mic)</label><select id="dev-real-mic"><option>扫描中... / Scanning...</option></select></div>
+                <div class="form-group"><label class="form-label">耳机 / Output (Speaker)</label><select id="dev-real-spk"><option>扫描中... / Scanning...</option></select></div>
+                
+                <div class="btn-row">
+                    <button id="btn-calib" class="btn-calibrate" onclick="calibrateNoise()">
+                        <span>⚡ 智能校准 / Auto Calibrate</span>
+                    </button>
+                </div>
+                <div style="font-size:9px; color:#666; margin-top:3px; text-align:center;">校准请保持安静 / Please keep silent during calibration</div>
+
+                <button class="step-next-btn" onclick="nextGuide(3)">下一步</button>
+                <div class="internal-status-box">
+                    <div class="isb-title">内部路由检测 / Routing Check</div>
+                    <div class="isb-group"><span class="isb-label">AI 听 (In):</span><span id="status-cable-b" class="isb-val">扫描中...</span></div>
+                    <div class="isb-group"><span class="isb-label">AI 说 (Out):</span><span id="status-cable-a" class="isb-val">扫描中...</span></div>
+                </div>
+            </div>
+
+            <div id="card-glossary" class="col-card">
+                <div class="col-title">3. 术语库 / Glossary <span class="step-badge">可选</span></div>
+                <div id="glossary-list-area" class="glossary-list"><div style="color:#666; font-size:12px; text-align:center; padding:10px;">加载中... / Loading...</div></div>
+                <button class="step-next-btn" onclick="finishGuide()">完成配置</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div id="dash-status-dot" class="status-dot" style="margin-left:auto"></div>
+            <span id="connectionStatus" style="font-size:11px; color:var(--text-sub); margin-right:10px;">连接中... / Connecting...</span>
+            <span id="networkLatency" class="status-text">-- ms</span>
+
+            <button id="startBtn" class="btn-start" onclick="startSession()" disabled>开始运行 / Start</button>
+        </div>
+    </div>
+
+    <div id="section-action">
+        <div class="action-bar">
+            <div class="action-info">
+                <div class="act-item"><div id="act-status-dot" class="status-dot"></div><span id="act-status-text">就绪 / Ready</span></div>
+                <div class="act-item" style="border-left:1px solid #444; padding-left:10px;"><span id="act-latency">-- ms</span></div>
+            </div>
+            <div class="action-close-btn" onclick="stopSession()" title="退出">✕</div>
+        </div>
+        
+        <div class="action-body">
+            <div class="action-box" id="ab-speak">
+                <div class="ab-header"><span>我的发言 / ME</span><span class="ab-tag">正在听 / LISTENING</span></div>
+                <div class="split-container">
+                    <div class="pane-trans" id="pane-trans-speak"><span class="pending-text" id="pending-trans-speak">...</span></div>
+                    <div class="pane-divider"></div>
+                    <div class="pane-orig" id="pane-orig-speak"><span class="pending-text" id="pending-orig-speak" style="font-size:11px;">Ready</span></div>
+                </div>
+            </div>
+            
+            <div class="action-box" id="ab-listen">
+                <div class="ab-header"><span>他人发言 / OTHERS</span><span class="ab-tag">正在读 / PLAYING</span></div>
+                <div class="split-container">
+                    <div class="pane-trans" id="pane-trans-listen"><span class="pending-text" id="pending-trans-listen">...</span></div>
+                    <div class="pane-divider"></div>
+                    <div class="pane-orig" id="pane-orig-listen"><span class="pending-text" id="pending-orig-listen" style="font-size:11px;">Ready</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="player-for-cable-a" style="display:none"></audio>
+    <audio id="player-for-headset" style="display:none"></audio>
+
+    <script src="/static/vad/ort.js"></script>
+    <script src="/static/vad/my_vad.js"></script>
+    <script src="/static/js/translator.js"></script>
+</body>
+</html>

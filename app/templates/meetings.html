@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会议记录</title>
+    <style>
+        * { box-sizing: border-box; outline: none; user-select: none; }
+        :root {
+            --bg-body: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-header: #1e1e1e;
+            --bg-input: #252525;
+            --bg-hover: #2a2a2a;
+            --border: #333333;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #e5e5e5;
+            --text-sub: #a3a3a3;
+            --danger: #ef4444;
+            --speak-color: #3b82f6;
+            --listen-color: #10b981;
+            --radius: 6px;
+        }
+        html, body {
+            height: 100%; margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-size: 13px;
+            overflow: hidden;
+        }
+
+        /* 顶部导航 */
+        .app-header {
+            height: 50px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--bg-body);
+            flex-shrink: 0;
+        }
+        .app-title { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+        .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
+        .nav-btn {
+            padding: 6px 14px; border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-panel); color: var(--text-sub);
+            cursor: pointer; font-size: 12px;
+            text-decoration: none; transition: all 0.15s;
+        }
+        .nav-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+
+        /* 主布局 */
+        .main-container {
+            display: flex; height: calc(100vh - 50px); overflow: hidden;
+        }
+
+        /* 左侧列表 */
+        .sidebar {
+            width: 300px; flex-shrink: 0;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .sidebar-title { font-weight: 600; font-size: 14px; }
+        .badge { background: var(--accent); color: #fff; border-radius: 20px; padding: 1px 8px; font-size: 11px; }
+        .meeting-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .meeting-list::-webkit-scrollbar { width: 4px; }
+        .meeting-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* 会议卡片 */
+        .meeting-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+        .meeting-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+        .meeting-card.active { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+        .card-title { font-weight: 600; font-size: 13px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+        .card-meta span { color: var(--text-sub); font-size: 11px; }
+        .card-status {
+            position: absolute; top: 10px; right: 10px;
+            font-size: 10px; padding: 2px 7px; border-radius: 10px;
+        }
+        .card-status.recording { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .card-status.completed { background: rgba(16,185,129,0.12); color: #10b981; }
+        .card-status.empty { background: rgba(163,163,163,0.12); color: var(--text-sub); }
+        .empty-list { text-align: center; color: var(--text-sub); padding: 40px 20px; font-size: 13px; line-height: 1.8; }
+
+        /* 右侧详情 */
+        .detail-panel {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .detail-toolbar {
+            height: 50px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            flex-shrink: 0;
+        }
+        .detail-title { font-weight: 600; font-size: 14px; }
+        .toolbar-actions { display: flex; gap: 8px; }
+
+        .btn {
+            padding: 6px 14px; border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--bg-input); color: var(--text-main);
+            cursor: pointer; font-size: 12px; transition: all 0.15s;
+        }
+        .btn:hover { background: var(--bg-hover); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-danger { background: rgba(239,68,68,0.12); border-color: var(--danger); color: var(--danger); }
+        .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+        /* 导出下拉 */
+        .export-wrap { position: relative; }
+        .export-menu {
+            display: none;
+            position: absolute; top: calc(100% + 4px); right: 0; z-index: 100;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            min-width: 110px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .export-wrap:hover .export-menu, .export-wrap.open .export-menu { display: block; }
+        .export-item {
+            padding: 8px 16px; cursor: pointer; font-size: 12px;
+            color: var(--text-main); transition: background 0.1s;
+        }
+        .export-item:hover { background: var(--bg-hover); }
+
+        /* 转写内容区 */
+        .transcript-area {
+            flex: 1; overflow-y: auto; padding: 20px;
+        }
+        .transcript-area::-webkit-scrollbar { width: 4px; }
+        .transcript-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* 双栏布局 */
+        .transcript-columns {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%;
+        }
+        .transcript-col { display: flex; flex-direction: column; }
+        .col-header {
+            font-weight: 600; font-size: 13px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border); margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .col-dot.speak { background: var(--speak-color); box-shadow: 0 0 6px var(--speak-color); }
+        .col-dot.listen { background: var(--listen-color); box-shadow: 0 0 6px var(--listen-color); }
+
+        /* 条目段落 */
+        .entry-group { margin-bottom: 20px; }
+        .entry-original {
+            font-size: 14px; color: var(--text-main); line-height: 1.8;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border-radius: var(--radius) var(--radius) 0 0;
+            border: 1px solid var(--border);
+        }
+        .entry-translated {
+            font-size: 13px; color: var(--text-sub); line-height: 1.8;
+            padding: 8px 14px 10px;
+            background: var(--bg-panel);
+            border-radius: 0 0 var(--radius) var(--radius);
+            border: 1px solid var(--border);
+            border-top: 1px dashed var(--border);
+        }
+        .entry-ts { font-size: 10px; color: var(--text-sub); margin-bottom: 4px; opacity: 0.6; }
+
+        /* 空详情 */
+        .detail-empty {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--text-sub);
+        }
+        .detail-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+
+        /* 统计条 */
+        .stat-bar {
+            display: flex; gap: 20px; padding: 8px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            font-size: 11px; color: var(--text-sub);
+            flex-shrink: 0;
+        }
+        .stat-bar strong { color: var(--text-main); }
+
+        /* Loading */
+        .loading-dots { display: inline-block; }
+        .loading-dots::after { content: '...'; animation: dots 1s steps(4, end) infinite; }
+        @keyframes dots { 0%, 20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
+    </style>
+</head>
+<body>
+
+<div class="app-header">
+    <div class="app-title">
+        <span class="logo-dot"></span>
+        <span>会议记录</span>
+    </div>
+    <a href="/" class="nav-btn" id="back-btn">← 返回</a>
+</div>
+
+<div class="main-container">
+    <!-- 左侧会议列表 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">最近会议</span>
+            <span class="badge" id="meeting-count">0</span>
+        </div>
+        <div class="meeting-list" id="meeting-list">
+            <div class="empty-list">加载中<span class="loading-dots"></span></div>
+        </div>
+    </div>
+
+    <!-- 右侧详情 -->
+    <div class="detail-panel">
+        <div class="detail-toolbar">
+            <span class="detail-title" id="detail-title">请选择一条会议记录</span>
+            <div class="toolbar-actions" id="toolbar-actions" style="display:none;">
+                <div class="export-wrap" id="export-wrap">
+                    <button class="btn" onclick="toggleExportMenu()">导出 ▾</button>
+                    <div class="export-menu">
+                        <div class="export-item" onclick="exportMeeting('txt')">📄 TXT</div>
+                        <div class="export-item" onclick="exportMeeting('md')">📝 Markdown</div>
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="deleteMeeting()">删除</button>
+            </div>
+        </div>
+
+        <!-- 统计条（有内容时显示）-->
+        <div class="stat-bar" id="stat-bar" style="display:none;">
+            <span>时长：<strong id="stat-duration">-</strong></span>
+            <span>我方条目：<strong id="stat-speak">0</strong></span>
+            <span>对方条目：<strong id="stat-listen">0</strong></span>
+            <span>翻译方向：<strong id="stat-direction">-</strong></span>
+        </div>
+
+        <!-- 转写内容 -->
+        <div class="transcript-area" id="transcript-area">
+            <div class="detail-empty">
+                <div class="detail-empty-icon">📋</div>
+                <div>从左侧选择一条会议记录查看详情</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/meetings.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>术语管理中心</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        /* =========================================
+           1. 全局样式 (纯净暗黑)
+           ========================================= */
+        * { box-sizing: border-box; outline: none; user-select: none; }
+        
+        :root {
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --bg-input: #252525;
+            --bg-hover: #2a2a2a;
+            --border: #333333;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #e5e5e5;
+            --text-sub: #a3a3a3;
+            --danger: #ef4444;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        html, body { 
+            height: 100%; margin: 0; padding: 0; 
+            font-family: var(--font-main); 
+            background-color: var(--bg-body); 
+            color: var(--text-main); 
+            overflow: hidden; 
+            font-size: 13px;
+        }
+
+        /* 顶部导航栏 */
+        .app-header {
+            height: 50px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--bg-body);
+            flex-shrink: 0;
+        }
+        
+        .app-title { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+        .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
+
+        .header-controls { display: flex; gap: 10px; align-items: center; }
+        
+        /* 顶部按钮 */
+        .btn-nav {
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--text-main);
+            padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; text-decoration: none; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-nav:hover { background: var(--bg-hover); border-color: var(--text-sub); }
+        .btn-nav.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+        .nav-btn {
+            padding: 6px 14px; border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-card); color: var(--text-sub);
+            font-size: 12px; cursor: pointer; text-decoration: none;
+            transition: all 0.15s;
+        }
+        .nav-btn:hover { border-color: var(--accent); color: var(--text-main); }
+
+        /* =========================================
+           2. 主布局
+           ========================================= */
+        .workspace { 
+            display: flex; height: calc(100% - 50px); 
+            overflow: hidden; 
+            background-color: var(--bg-body);
+        }
+        
+        .col { display: flex; flex-direction: column; border-right: 1px solid var(--border); min-width: 0; background-color: var(--bg-card); }
+        .col:last-child { border-right: none; }
+
+        .col-cats { flex: 0 0 200px; }
+        .col-list { flex: 0 0 300px; }
+        .col-edit { flex: 1; background-color: var(--bg-body); } 
+
+        .col-header {
+            height: 44px; padding: 0 15px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            background-color: rgba(255,255,255,0.02);
+            font-weight: 600; color: var(--text-sub); font-size: 12px;
+        }
+        
+        .header-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-sub);
+            padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .header-btn:hover { border-color: var(--accent); color: var(--text-main); }
+        .header-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+        .scroll-area { flex: 1; overflow-y: auto; padding: 0; min-height: 0; }
+
+        /* =========================================
+           3. 组件细节
+           ========================================= */
+        .cat-group-title {
+            padding: 15px 15px 5px 15px; font-size: 11px; font-weight: 700; 
+            color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;
+        }
+        .cat-item {
+            padding: 8px 15px 8px 25px; cursor: pointer; color: var(--text-main);
+            border-left: 3px solid transparent; transition: background 0.1s;
+            font-size: 13px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .cat-item:hover { background-color: var(--bg-hover); }
+        .cat-item.selected { background-color: rgba(59, 130, 246, 0.15); border-left-color: var(--accent); color: #fff; }
+        .cat-item.public { color: #10b981; } 
+        
+        .cat-del-btn { font-size: 10px; color: var(--text-sub); opacity: 0; transition: opacity 0.2s; }
+        .cat-item:hover .cat-del-btn { opacity: 1; }
+        .cat-del-btn:hover { color: var(--danger); }
+
+        .term-item {
+            padding: 10px 15px; border-bottom: 1px solid #2a2a2a; cursor: pointer;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .term-item:hover { background-color: var(--bg-hover); }
+        .term-item.selected { background-color: rgba(59, 130, 246, 0.15); }
+        
+        .term-check { accent-color: var(--accent); cursor: pointer; }
+        .term-content { flex: 1; min-width: 0; }
+        .term-zh { color: var(--text-main); font-weight: 500; font-size: 13px; margin-bottom: 2px; }
+        .term-en { color: var(--text-sub); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .editor-container { padding: 30px; max-width: 600px; margin: 0 auto; width: 100%; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; color: var(--text-sub); font-size: 12px; }
+        .form-input {
+            width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+            color: white; padding: 12px; border-radius: 6px; font-size: 13px;
+            font-family: inherit; resize: vertical; outline: none;
+        }
+        .form-input:focus { border-color: var(--accent); }
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; background: var(--bg-hover); }
+
+        .btn-primary {
+            background: var(--accent); color: white; border: none; padding: 8px 24px;
+            border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        
+        .btn-danger-outline {
+            background: transparent; color: var(--danger); border: 1px solid var(--border);
+            padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-danger-outline:hover { border-color: var(--danger); background: rgba(239,68,68,0.1); }
+
+        .placeholder { 
+            display: flex; height: 100%; align-items: center; justify-content: center; 
+            color: var(--text-sub); font-size: 13px; opacity: 0.5; flex-direction: column; gap: 10px;
+        }
+
+        .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; display: none; align-items: center; justify-content: center; }
+        .modal-win { background: var(--bg-card); width: 420px; padding: 25px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .modal-h { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;}
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+    </style>
+</head>
+<body>
+    <input type="hidden" id="target-user-id" value="">
+
+    <header class="app-header">
+        <div class="app-title">
+            <div class="logo-dot"></div> 术语管理中心
+        </div>
+        
+        <div class="header-controls">
+            <button class="btn-nav" id="check-conflicts-btn">检查冲突</button>
+            <button class="btn-nav" id="import-btn">导入</button>
+            <button class="btn-nav" id="export-btn">导出</button>
+            <a class="nav-btn" id="back-btn">← 返回</a>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="col col-cats">
+            <div class="col-header">
+                分类列表
+                <button class="header-btn" id="add-category-btn">新建</button>
+            </div>
+            <div class="scroll-area" id="category-tree">
+                <div class="placeholder">加载中...</div>
+            </div>
+        </div>
+
+        <div class="col col-list">
+            <div class="col-header">
+                术语明细
+                <div class="header-actions">
+                    <button class="header-btn danger" id="delete-selected-btn" style="display:none;">删除所选</button>
+                    <button class="header-btn" id="add-term-btn">新建</button>
+                </div>
+            </div>
+            <div class="scroll-area" id="term-list">
+                <div class="placeholder">请选择一个分类</div>
+            </div>
+        </div>
+
+        <div class="col col-edit">
+            <div class="col-header">详情编辑</div>
+            <div class="scroll-area" id="term-editor">
+                <div class="placeholder">请选择术语进行编辑</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-modal" class="modal-mask">
+        <div class="modal-win">
+            <div class="modal-h">导入术语</div>
+            <div class="form-group">
+                <label class="form-label">选择目标分类</label>
+                <select id="import-category-select" class="form-input" style="padding:8px;"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">选择 CSV 文件</label>
+                <input type="file" id="import-file-input" accept=".csv" class="form-input" style="padding:8px;">
+                <p style="color:var(--text-sub); font-size:12px; margin-top:5px;">格式要求：原文, 译文, 备注(可选)</p>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn-nav" onclick="document.getElementById('import-modal').style.display='none'">取消</button>
+                <button id="confirm-import-btn" class="btn-primary">开始导入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="conflict-modal" class="modal-mask">
+        <div class="modal-win">
+            <div class="modal-h">发现术语冲突</div>
+            <div id="conflict-list" style="max-height:300px; overflow-y:auto; margin-bottom:20px; border:1px solid var(--border); border-radius:6px; padding:10px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn-nav" onclick="document.getElementById('conflict-modal').style.display='none'">暂不处理</button>
+                <button id="confirm-unification-btn" class="btn-primary">统一所选</button>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/glossary.js') }}"></script>
+</body>
+</html>

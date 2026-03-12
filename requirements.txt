@@ -1,0 +1,16 @@
+Flask==3.1.2
+Flask-Migrate==4.1.0
+Flask-SocketIO==5.5.1
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.44
+alembic==1.17.2
+python-socketio==5.14.3
+python-engineio==4.12.3
+simple-websocket==1.1.0
+websockets==15.0.1
+python-dotenv==1.2.1
+requests==2.32.5
+bidict==0.23.1
+tenacity==9.1.2
+protobuf==6.33.0
+Werkzeug==3.1.3
